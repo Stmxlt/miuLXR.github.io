@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>子晨小游戏 - 记忆卡片</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: linear-gradient(135deg, #1f1f1f 0%, #000000 100%);
+      min-height: 100vh;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* 动态背景粒子 */
+    .particles {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .particle {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.6);
+      border-radius: 50%;
+      animation: float 6s ease-in-out infinite;
+    }
+
+    @keyframes float {
+
+      0%,
+      100% {
+        transform: translateY(0px) rotate(0deg);
+        opacity: 0.7;
+      }
+
+      50% {
+        transform: translateY(-20px) rotate(180deg);
+        opacity: 1;
+      }
+    }
+
+    /* 主容器 */
+    .container {
+      position: relative;
+      z-index: 2;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    /* 磨砂玻璃头部 */
+    .header {
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 20px;
+      padding: 20px 40px;
+      margin-bottom: 30px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      animation: slideDown 0.8s ease-out;
+    }
+
+    @keyframes slideDown {
+      from {
+        transform: translateY(-50px);
+        opacity: 0;
+      }
+
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    .title {
+      color: white;
+      font-size: 2.5rem;
+      font-weight: 700;
+      text-align: center;
+      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+      margin-bottom: 10px;
+    }
+
+    .subtitle {
+      font-size: 1.2rem;
+      color: white;
+      text-align: center;
+      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+      margin-bottom: 10px;
+    }
+
+
+    .score {
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 1.2rem;
+      text-align: center;
+      font-weight: 500;
+    }
+
+    /* 游戏面板 */
+    .game-board {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 25px;
+      padding: 30px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+      animation: fadeInUp 1s ease-out 0.3s both;
+    }
+
+    @keyframes fadeInUp {
+      from {
+        transform: translateY(50px);
+        opacity: 0;
+      }
+
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 15px;
+      max-width: 400px;
+    }
+
+    /* 卡片样式 */
+    .card {
+      width: 80px;
+      height: 80px;
+      position: relative;
+      cursor: pointer;
+      transform-style: preserve-3d;
+      transition: transform 0.6s cubic-bezier(0.4, 0.0, 0.2, 1);
+    }
+
+    .card:hover {
+      transform: scale(1.05);
+    }
+
+    .card.flipped {
+      transform: rotateY(180deg);
+    }
+
+    .card.matched {
+      animation: matchPulse 0.6s ease-out;
+    }
+
+    @keyframes matchPulse {
+      0% {
+        transform: scale(1);
+      }
+
+      50% {
+        transform: scale(1.2) rotateY(180deg);
+      }
+
+      100% {
+        transform: scale(1) rotateY(180deg);
+      }
+    }
+
+    .card-face {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      backface-visibility: hidden;
+      border-radius: 15px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+
+    .card-front {
+      background: rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(10px);
+      color: rgba(255, 255, 255, 0.8);
+    }
+
+    .card-back {
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.1));
+      backdrop-filter: blur(15px);
+      transform: rotateY(180deg);
+      color: #333;
+      font-weight: bold;
+    }
+
+    /* 控制按钮 */
+    .controls {
+      margin-top: 30px;
+      display: flex;
+      gap: 20px;
+    }
+
+    .btn {
+      background: rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 15px;
+      padding: 12px 24px;
+      color: white;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .btn:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    /* 胜利提示 */
+    .victory-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(10px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      animation: fadeIn 0.3s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+
+      to {
+        opacity: 1;
+      }
+    }
+
+    .victory-content {
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(25px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 25px;
+      padding: 40px;
+      text-align: center;
+      color: white;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      animation: scaleIn 0.5s ease-out;
+    }
+
+    @keyframes scaleIn {
+      from {
+        transform: scale(0.8);
+        opacity: 0;
+      }
+
+      to {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
+    .victory-title {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 20px;
+      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    }
+
+    .victory-text {
+      font-size: 1.2rem;
+      margin-bottom: 30px;
+      opacity: 0.9;
+    }
+
+    /* 响应式设计 */
+    @media (max-width: 480px) {
+      .cards-grid {
+        max-width: 300px;
+      }
+
+      .card {
+        width: 60px;
+        height: 60px;
+      }
+
+      .title {
+        font-size: 2rem;
+      }
+
+      .header {
+        padding: 15px 25px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- 动态背景粒子 -->
+  <div class="particles" id="particles"></div>
+
+  <div class="container">
+    <!-- 头部信息 -->
+    <div class="header">
+      <h1 class="title">记忆卡片</h1>
+      <h2 class="subtitle">子晨小游戏</h2>
+      <div class="score">
+        <span>步数: <span id="moves">0</span></span>
+        <span style="margin-left: 20px;">时间: <span id="time">00:00</span></span>
+      </div>
+    </div>
+
+    <!-- 游戏面板 -->
+    <div class="game-board">
+      <div class="cards-grid" id="gameBoard"></div>
+    </div>
+
+    <!-- 控制按钮 -->
+    <div class="controls">
+      <button class="btn" onclick="startNewGame()">新游戏</button>
+      <button class="btn" onclick="resetGame()">点我</button>
+    </div>
+  </div>
+
+  <!-- 胜利提示模态框 -->
+  <div class="victory-modal" id="victoryModal">
+    <div class="victory-content">
+      <h2 class="victory-title">🎉 恭喜！</h2>
+      <p class="victory-text">你成功完成了游戏！</p>
+      <p class="victory-text">用时: <span id="finalTime"></span> | 步数: <span id="finalMoves"></span></p>
+      <button class="btn" onclick="closeVictoryModal()">继续游戏</button>
+    </div>
+  </div>
+
+  <script>
+    // 游戏状态
+    let gameState = {
+      cards: [],
+      flippedCards: [],
+      matchedPairs: 0,
+      moves: 0,
+      startTime: null,
+      gameTimer: null,
+      isGameActive: false
+    };
+
+    // 卡片图标
+    const cardIcons = ['🌟', '🎨', '🎵', '🎮', '🚀', '💎', '🌈', '⚡'];
+
+    // 初始化粒子背景
+    function initParticles() {
+      const particlesContainer = document.getElementById('particles');
+      const particleCount = 50;
+
+      for (let i = 0; i < particleCount; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'particle';
+        particle.style.left = Math.random() * 100 + '%';
+        particle.style.top = Math.random() * 100 + '%';
+        particle.style.animationDelay = Math.random() * 6 + 's';
+        particle.style.animationDuration = (Math.random() * 3 + 3) + 's';
+        particlesContainer.appendChild(particle);
+      }
+    }
+
+    // 创建卡片数组
+    function createCards() {
+      const cards = [];
+      cardIcons.forEach(icon => {
+        cards.push({ icon, id: Math.random() });
+        cards.push({ icon, id: Math.random() });
+      });
+      return shuffleArray(cards);
+    }
+
+    // 洗牌算法
+    function shuffleArray(array) {
+      const newArray = [...array];
+      for (let i = newArray.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+      }
+      return newArray;
+    }
+
+    // 渲染游戏面板
+    function renderGameBoard() {
+      const gameBoard = document.getElementById('gameBoard');
+      gameBoard.innerHTML = '';
+
+      gameState.cards.forEach((card, index) => {
+        const cardElement = document.createElement('div');
+        cardElement.className = 'card';
+        cardElement.dataset.index = index;
+        cardElement.innerHTML = `
+                    <div class="card-face card-front">?</div>
+                    <div class="card-face card-back">${card.icon}</div>
+                `;
+        cardElement.addEventListener('click', () => flipCard(index));
+        gameBoard.appendChild(cardElement);
+      });
+    }
+
+    // 翻转卡片
+    function flipCard(index) {
+      if (!gameState.isGameActive) return;
+      if (gameState.flippedCards.length >= 2) return;
+      if (gameState.flippedCards.includes(index)) return;
+
+      const cardElement = document.querySelector(`[data-index="${index}"]`);
+      cardElement.classList.add('flipped');
+      gameState.flippedCards.push(index);
+
+      if (gameState.flippedCards.length === 2) {
+        gameState.moves++;
+        updateMoves();
+        setTimeout(checkMatch, 600);
+      }
+    }
+
+    // 检查匹配
+    function checkMatch() {
+      const [firstIndex, secondIndex] = gameState.flippedCards;
+      const firstCard = gameState.cards[firstIndex];
+      const secondCard = gameState.cards[secondIndex];
+
+      if (firstCard.icon === secondCard.icon) {
+        // 匹配成功
+        const firstElement = document.querySelector(`[data-index="${firstIndex}"]`);
+        const secondElement = document.querySelector(`[data-index="${secondIndex}"]`);
+
+        firstElement.classList.add('matched');
+        secondElement.classList.add('matched');
+
+        gameState.matchedPairs++;
+
+        if (gameState.matchedPairs === cardIcons.length) {
+          setTimeout(showVictory, 500);
+        }
+      } else {
+        // 匹配失败，翻回去
+        setTimeout(() => {
+          const firstElement = document.querySelector(`[data-index="${firstIndex}"]`);
+          const secondElement = document.querySelector(`[data-index="${secondIndex}"]`);
+          firstElement.classList.remove('flipped');
+          secondElement.classList.remove('flipped');
+        }, 300);
+      }
+
+      gameState.flippedCards = [];
+    }
+
+    // 更新步数显示
+    function updateMoves() {
+      document.getElementById('moves').textContent = gameState.moves;
+    }
+
+    // 更新时间显示
+    function updateTime() {
+      if (!gameState.startTime) return;
+
+      const elapsed = Math.floor((Date.now() - gameState.startTime) / 1000);
+      const minutes = Math.floor(elapsed / 60).toString().padStart(2, '0');
+      const seconds = (elapsed % 60).toString().padStart(2, '0');
+      document.getElementById('time').textContent = `${minutes}:${seconds}`;
+    }
+
+    // 开始新游戏
+    function startNewGame() {
+      gameState = {
+        cards: createCards(),
+        flippedCards: [],
+        matchedPairs: 0,
+        moves: 0,
+        startTime: Date.now(),
+        gameTimer: null,
+        isGameActive: true
+      };
+
+      renderGameBoard();
+      updateMoves();
+
+      // 启动计时器
+      gameState.gameTimer = setInterval(updateTime, 1000);
+    }
+
+    // 重置游戏
+    function resetGame() {
+      alert('理解');
+    }
+
+    // 显示胜利提示
+    function showVictory() {
+      gameState.isGameActive = false;
+      if (gameState.gameTimer) {
+        clearInterval(gameState.gameTimer);
+      }
+
+      const finalTime = document.getElementById('time').textContent;
+      document.getElementById('finalTime').textContent = finalTime;
+      document.getElementById('finalMoves').textContent = gameState.moves;
+      document.getElementById('victoryModal').style.display = 'flex';
+    }
+
+    // 关闭胜利提示
+    function closeVictoryModal() {
+      document.getElementById('victoryModal').style.display = 'none';
+      startNewGame();
+    }
+
+    // 初始化游戏
+    function initGame() {
+      initParticles();
+      startNewGame();
+    }
+
+    // 页面加载完成后初始化
+    document.addEventListener('DOMContentLoaded', initGame);
+  </script>
+</body>
+
+</html>
